@@ -1,26 +1,20 @@
+import shutil
 import sys
 from pathlib import Path
 
-if len(sys.argv) != 3 and len(sys.argv) != 2:
+if len(sys.argv) not in (2, 3):
     print("Usage: python task1_recursive_copy.py <src> [<dst>]")
     sys.exit(1)
 
-if len(sys.argv) == 3:
-    [src, dst] = sys.argv[1:]
-    try:
-        src_path = Path(src).expanduser().resolve()
-        dst_path = Path(dst).expanduser().resolve()
-    except Exception as e:
-        print(f"Failed to resolve paths: {e}")
-        sys.exit(1)
-else:
-    [src] = sys.argv[1:]
-    try:
-        src_path = Path(src).expanduser().resolve()
-        dst_path = src_path.parent / "dist"
-    except Exception as e:
-        print(f"Failed to resolve paths: {e}")
-        sys.exit(1)
+try:
+    src_path = Path(sys.argv[1]).expanduser().resolve()
+    if len(sys.argv) == 3:
+        dst_path = Path(sys.argv[2]).expanduser().resolve()
+    else:
+        dst_path = (Path.cwd() / "dist").resolve()
+except Exception as e:
+    print(f"Failed to resolve paths: {e}")
+    sys.exit(1)
 
 print(f"Source: '{src_path}'")
 print(f"Destination: '{dst_path}'")
@@ -29,15 +23,20 @@ if not src_path.exists() or not src_path.is_dir():
     print(f"Source path '{src_path}' does not exist or is not a directory.")
     sys.exit(1)
 
+try:
+    dst_path_resolved = dst_path.resolve()
+except Exception as e:
+    print(f"Failed to resolve destination path '{dst_path}': {e}")
+    sys.exit(1)
+
+try:
+    dst_path.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Failed to create destination directory '{dst_path}': {e}")
+    sys.exit(1)
+
 
 def recursive_copy(src_path: Path):
-    try:
-        if not dst_path.exists():
-            dst_path.mkdir(parents=True, exist_ok=True)
-    except Exception as e:
-        print(f"Failed to create destination directory '{dst_path}': {e}")
-        return
-
     try:
         src_path_is_dir = src_path.is_dir()
     except Exception as e:
@@ -52,25 +51,30 @@ def recursive_copy(src_path: Path):
             return
 
         for item in src_path_iter:
+            try:
+                item_resolved = item.resolve()
+            except Exception:
+                item_resolved = None
+
+            if item_resolved is not None and (
+                item_resolved == dst_path_resolved
+                or dst_path_resolved in item_resolved.parents
+            ):
+                continue
             recursive_copy(item)
 
         return
 
     try:
-        extension = "no_extension"
-        if src_path.suffix:
-            extension = src_path.suffix[1:]
-
-        if not (dst_path / extension).exists():
-            (dst_path / extension).mkdir(parents=True, exist_ok=True)
-
-        sub_dst = dst_path / extension / src_path.name
+        extension = src_path.suffix[1:].lower() if src_path.suffix else "no_extension"
+        target_dir = dst_path / extension
+        target_dir.mkdir(parents=True, exist_ok=True)
+        sub_dst = target_dir / src_path.name
 
         print(f"Copying '{src_path}' to '{sub_dst}'...")
-
-        sub_dst.write_bytes(src_path.read_bytes())
+        shutil.copy2(src_path, sub_dst)
     except Exception as e:
-        print(f"Failed to copy '{src_path}' to '{dst_path / extension}': {e}")
+        print(f"Failed to copy '{src_path}': {e}")
 
 
 if __name__ == "__main__":
