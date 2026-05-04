@@ -12,11 +12,15 @@ def koch(pen: t.Turtle, length: float, order: int) -> None:
 
 def main() -> None:
     size = 400
-    order = int(
-        input(
-            "Enter the order of the snowflake (non-negative integer, up to 5 is recommended): "
+    try:
+        order = int(
+            input(
+                "Enter the order of the snowflake (non-negative integer, up to 5 is recommended): "
+            )
         )
-    )
+    except ValueError:
+        print("Order must be a non-negative integer.")
+        return
     if order < 0:
         print("Order must be a non-negative integer.")
         return
